@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick POS - Emergency Sales Recorder</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 { color: #333; margin-bottom: 5px; }
+        .subtitle { color: #666; font-size: 14px; margin-bottom: 20px; }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 120px;
+        }
+        .input-group label {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .input-group input, .input-group select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #4a90d9;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-primary {
+            background: #4a90d9;
+            color: white;
+        }
+        .btn-primary:hover { background: #357abd; }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover { background: #218838; }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover { background: #c82333; }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover { background: #5a6268; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        td { font-size: 14px; }
+        .num { text-align: right; }
+        .actions { text-align: center; width: 60px; }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .delete-btn:hover { background: #c82333; }
+
+        .totals-box {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: right;
+        }
+        .totals-box div {
+            margin: 4px 0;
+            font-size: 15px;
+        }
+        .grand-total {
+            font-size: 22px;
+            font-weight: bold;
+            color: #28a745;
+            margin-top: 8px;
+            border-top: 2px solid #ddd;
+            padding-top: 8px;
+        }
+
+        .receipt-preview {
+            background: white;
+            border: 2px dashed #ccc;
+            padding: 30px;
+            max-width: 320px;
+            margin: 0 auto;
+            font-family: 'Courier New', monospace;
+        }
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .receipt-header h2 { font-size: 18px; margin-bottom: 4px; }
+        .receipt-header p { font-size: 11px; color: #555; }
+        .receipt-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin: 4px 0;
+        }
+        .receipt-divider {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+        .receipt-total {
+            font-weight: bold;
+            font-size: 15px;
+        }
+        .receipt-footer {
+            text-align: center;
+            font-size: 11px;
+            margin-top: 15px;
+            color: #555;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #888;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; }
+            .receipt-preview {
+                border: none;
+                width: 100%;
+                max-width: 100%;
+            }
+            .card { box-shadow: none; margin: 0; }
+        }
+
+        .settings-row {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .settings-row .input-group {
+            min-width: 150px;
+            flex: 0;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+
+    <div class="no-print">
+        <h1>🛒 Quick POS</h1>
+        <p class="subtitle">Emergency sales recorder — works offline, no server needed</p>
+    </div>
+
+    <!-- Settings -->
+    <div class="card no-print">
+        <div class="settings-row">
+            <div class="input-group">
+                <label>Store Name</label>
+                <input type="text" id="storeName" value="My Store" onchange="updateReceipt()">
+            </div>
+            <div class="input-group">
+                <label>Tax Rate (%)</label>
+                <input type="number" id="taxRate" value="0" min="0" max="100" step="0.01" onchange="updateTotals()">
+            </div>
+            <div class="input-group">
+                <label>Currency</label>
+                <select id="currency" onchange="updateTotals()">
+                    <option value="$">$ USD</option>
+                    <option value="€">€ EUR</option>
+                    <option value="£">£ GBP</option>
+                    <option value="₹">₹ INR</option>
+                    <option value="¥">¥ JPY</option>
+                    <option value="">Other</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Item -->
+    <div class="card no-print">
+        <h3 style="margin-bottom: 15px;">Add Item</h3>
+        <div class="input-row">
+            <div class="input-group" style="flex: 2;">
+                <label>Item Name</label>
+                <input type="text" id="itemName" placeholder="e.g. T-Shirt" autofocus>
+            </div>
+            <div class="input-group">
+                <label>Price</label>
+                <input type="number" id="itemPrice" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="input-group">
+                <label>Qty</label>
+                <input type="number" id="itemQty" value="1" min="1" step="1">
+            </div>
+            <button class="btn-primary" onclick="addItem()">➕ Add</button>
+        </div>
+    </div>
+
+    <!-- Current Sale -->
+    <div class="card no-print">
+        <h3 style="margin-bottom: 10px;">Current Sale</h3>
+        <div id="itemsTable">
+            <div class="empty-state">No items added yet. Add items above.</div>
+        </div>
+        <div class="totals-box" id="totalsBox" style="display:none;">
+            <div>Subtotal: <span id="subtotalDisplay">$0.00</span></div>
+            <div>Tax (<span id="taxRateDisplay">0%</span>): <span id="taxDisplay">$0.00</span></div>
+            <div class="grand-total">TOTAL: <span id="grandTotalDisplay">$0.00</span></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn-success" onclick="finalizeSale()">✅ Finalize & Print Receipt</button>
+            <button class="btn-secondary" onclick="clearSale()">🗑️ Clear Sale</button>
+        </div>
+    </div>
+
+    <!-- Receipt -->
+    <div class="card" id="receiptCard" style="display:none;">
+        <div class="receipt-preview" id="receiptPreview">
+            <!-- Receipt content generated by JS -->
+        </div>
+        <div class="btn-group no-print" style="justify-content: center; margin-top: 20px;">
+            <button class="btn-primary" onclick="window.print()">🖨️ Print Receipt</button>
+            <button class="btn-secondary" onclick="newSale()">📝 New Sale</button>
+        </div>
+    </div>
+
+    <!-- Sales History -->
+    <div class="card no-print">
+        <h3 style="margin-bottom: 10px;">Today's Sales History</h3>
+        <div id="historyTable">
+            <div class="empty-state">No sales recorded today.</div>
+        </div>
+        <div class="btn-group" style="margin-top: 15px;">
+            <button class="btn-danger" onclick="clearHistory()">🗑️ Clear All History</button>
+            <button class="btn-secondary" onclick="exportCSV()">📁 Export CSV</button>
+        </div>
+    </div>
+
+<script>
+let currentItems = [];
+let salesHistory = [];
+let saleCounter = 1;
+
+// Load history from localStorage on startup
+window.onload = function() {
+    const saved = localStorage.getItem('quickPosHistory');
+    const savedCounter = localStorage.getItem('quickPosCounter');
+    if (saved) {
+        try {
+            salesHistory = JSON.parse(saved);
+            saleCounter = savedCounter ? parseInt(savedCounter) : (salesHistory.length + 1);
+            renderHistory();
+        } catch(e) {}
+    }
+    document.getElementById('itemName').focus();
+};
+
+function saveHistory() {
+    localStorage.setItem('quickPosHistory', JSON.stringify(salesHistory));
+    localStorage.setItem('quickPosCounter', saleCounter.toString());
+}
+
+function getCurrency() {
+    return document.getElementById('currency').value;
+}
+
+function formatMoney(amount) {
+    return getCurrency() + amount.toFixed(2);
+}
+
+function addItem() {
+    const name = document.getElementById('itemName').value.trim();
+    const price = parseFloat(document.getElementById('itemPrice').value);
+    const qty = parseInt(document.getElementById('itemQty').value);
+
+    if (!name) { alert('Please enter an item name'); return; }
+    if (isNaN(price) || price < 0) { alert('Please enter a valid price'); return; }
+    if (isNaN(qty) || qty < 1) { alert('Please enter a valid quantity'); return; }
+
+    currentItems.push({ name, price, qty, total: price * qty });
+
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('itemQty').value = '1';
+    document.getElementById('itemName').focus();
+
+    renderItems();
+    updateTotals();
+}
+
+function removeItem(index) {
+    currentItems.splice(index, 1);
+    renderItems();
+    updateTotals();
+}
+
+function renderItems() {
+    const container = document.getElementById('itemsTable');
+    if (currentItems.length === 0) {
+        container.innerHTML = '<div class="empty-state">No items added yet. Add items above.</div>';
+        document.getElementById('totalsBox').style.display = 'none';
+        return;
+    }
+
+    let html = '<table><thead><tr><th>Item</th><th class="num">Price</th><th class="num">Qty</th><th class="num">Total</th><th class="actions"></th></tr></thead><tbody>';
+    currentItems.forEach((item, i) => {
+        html += `<tr>
+            <td>${escapeHtml(item.name)}</td>
+            <td class="num">${formatMoney(item.price)}</td>
+            <td class="num">${item.qty}</td>
+            <td class="num">${formatMoney(item.total)}</td>
+            <td class="actions"><button class="delete-btn" onclick="removeItem(${i})">✕</button></td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    document.getElementById('totalsBox').style.display = 'block';
+}
+
+function updateTotals() {
+    const subtotal = currentItems.reduce((sum, item) => sum + item.total, 0);
+    const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+    const tax = subtotal * (taxRate / 100);
+    const grandTotal = subtotal + tax;
+
+    document.getElementById('subtotalDisplay').textContent = formatMoney(subtotal);
+    document.getElementById('taxRateDisplay').textContent = taxRate + '%';
+    document.getElementById('taxDisplay').textContent = formatMoney(tax);
+    document.getElementById('grandTotalDisplay').textContent = formatMoney(grandTotal);
+}
+
+function updateReceipt() {
+    // Receipt updates automatically when generated
+}
+
+function finalizeSale() {
+    if (currentItems.length === 0) {
+        alert('Add at least one item before finalizing.');
+        return;
+    }
+
+    const subtotal = currentItems.reduce((sum, item) => sum + item.total, 0);
+    const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+    const tax = subtotal * (taxRate / 100);
+    const grandTotal = subtotal + tax;
+    const storeName = document.getElementById('storeName').value || 'My Store';
+    const now = new Date();
+    const receiptId = 'R-' + String(saleCounter).padStart(4, '0');
+
+    // Save to history
+    const saleRecord = {
+        id: receiptId,
+        time: now.toISOString(),
+        items: [...currentItems],
+        subtotal: subtotal,
+        tax: tax,
+        total: grandTotal,
+        taxRate: taxRate,
+        storeName: storeName
+    };
+    salesHistory.push(saleRecord);
+    saleCounter++;
+    saveHistory();
+    renderHistory();
+
+    // Generate receipt HTML
+    let itemsHtml = '';
+    currentItems.forEach(item => {
+        itemsHtml += `<div class="receipt-line"><span>${escapeHtml(item.name)} x${item.qty}</span><span>${formatMoney(item.total)}</span></div>`;
+    });
+
+    const receiptHtml = `
+        <div class="receipt-header">
+            <h2>${escapeHtml(storeName)}</h2>
+            <p>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</p>
+            <p>Receipt #${receiptId}</p>
+        </div>
+        <div class="receipt-divider"></div>
+        ${itemsHtml}
+        <div class="receipt-divider"></div>
+        <div class="receipt-line"><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
+        <div class="receipt-line"><span>Tax (${taxRate}%)</span><span>${formatMoney(tax)}</span></div>
+        <div class="receipt-line receipt-total"><span>TOTAL</span><span>${formatMoney(grandTotal)}</span></div>
+        <div class="receipt-divider"></div>
+        <div class="receipt-footer">
+            <p>Thank you for your purchase!</p>
+            <p>---</p>
+        </div>
+    `;
+
+    document.getElementById('receiptPreview').innerHTML = receiptHtml;
+    document.getElementById('receiptCard').style.display = 'block';
+    document.getElementById('receiptCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function newSale() {
+    currentItems = [];
+    renderItems();
+    document.getElementById('receiptCard').style.display = 'none';
+    document.getElementById('itemName').focus();
+}
+
+function clearSale() {
+    if (currentItems.length > 0 && !confirm('Clear current sale?')) return;
+    currentItems = [];
+    renderItems();
+}
+
+function renderHistory() {
+    const container = document.getElementById('historyTable');
+    if (salesHistory.length === 0) {
+        container.innerHTML = '<div class="empty-state">No sales recorded today.</div>';
+        return;
+    }
+
+    let html = '<table><thead><tr><th>Receipt #</th><th>Time</th><th>Items</th><th class="num">Total</th></tr></thead><tbody>';
+    [...salesHistory].reverse().forEach(sale => {
+        const time = new Date(sale.time).toLocaleTimeString();
+        const itemCount = sale.items.reduce((sum, i) => sum + i.qty, 0);
+        html += `<tr>
+            <td>${sale.id}</td>
+            <td>${time}</td>
+            <td>${itemCount} item(s)</td>
+            <td class="num">${getCurrency()}${sale.total.toFixed(2)}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function clearHistory() {
+    if (!confirm('Delete ALL sales history? This cannot be undone.')) return;
+    salesHistory = [];
+    saleCounter = 1;
+    saveHistory();
+    renderHistory();
+}
+
+function exportCSV() {
+    if (salesHistory.length === 0) { alert('No sales to export'); return; }
+
+    let csv = 'Receipt ID,Time,Store,Item Name,Qty,Price,Total,Tax Rate,Subtotal,Tax,Grand Total\n';
+    salesHistory.forEach(sale => {
+        sale.items.forEach(item => {
+            csv += `${sale.id},${sale.time},"${sale.storeName}","${item.name}",${item.qty},${item.price},${item.total},${sale.taxRate}%,${sale.subtotal},${sale.tax},${sale.total}\n`;
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sales_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Allow Enter key to add item
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.activeElement.id !== 'storeName') {
+        if (['itemName','itemPrice','itemQty'].includes(document.activeElement.id)) {
+            addItem();
+        }
+    }
+});
+</script>
+
+</body>
+</html>
