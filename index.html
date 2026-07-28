@@ -82,6 +82,15 @@
             color: white;
         }
         .btn-secondary:hover { background: #5a6268; }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-warning:hover { background: #e0a800; }
+        .btn-sm {
+            padding: 5px 12px;
+            font-size: 12px;
+        }
 
         table {
             width: 100%;
@@ -102,7 +111,7 @@
         }
         td { font-size: 14px; }
         .num { text-align: right; }
-        .actions { text-align: center; width: 60px; }
+        .actions { text-align: center; width: 140px; }
         .delete-btn {
             background: #dc3545;
             color: white;
@@ -324,8 +333,9 @@ function getCurrency() {
     return document.getElementById('currency').value;
 }
 
-function formatMoney(amount) {
-    return getCurrency() + amount.toFixed(2);
+function formatMoney(amount, currency) {
+    const c = currency !== undefined ? currency : getCurrency();
+    return c + amount.toFixed(2);
 }
 
 function addItem() {
@@ -393,6 +403,37 @@ function updateReceipt() {
     // Receipt updates automatically when generated
 }
 
+function generateReceiptHtml(sale) {
+    let itemsHtml = '';
+    sale.items.forEach(item => {
+        itemsHtml += `<div class="receipt-line"><span>${escapeHtml(item.name)} x${item.qty}</span><span>${formatMoney(item.total, sale.currency || '')}</span></div>`;
+    });
+
+    const dateObj = new Date(sale.time);
+    const dateStr = dateObj.toLocaleDateString();
+    const timeStr = dateObj.toLocaleTimeString();
+    const currency = sale.currency || '';
+
+    return `
+        <div class="receipt-header">
+            <h2>${escapeHtml(sale.storeName)}</h2>
+            <p>${dateStr} ${timeStr}</p>
+            <p>Receipt #${sale.id}</p>
+        </div>
+        <div class="receipt-divider"></div>
+        ${itemsHtml}
+        <div class="receipt-divider"></div>
+        <div class="receipt-line"><span>Subtotal</span><span>${formatMoney(sale.subtotal, currency)}</span></div>
+        <div class="receipt-line"><span>Tax (${sale.taxRate}%)</span><span>${formatMoney(sale.tax, currency)}</span></div>
+        <div class="receipt-line receipt-total"><span>TOTAL</span><span>${formatMoney(sale.total, currency)}</span></div>
+        <div class="receipt-divider"></div>
+        <div class="receipt-footer">
+            <p>Thank you for your purchase!</p>
+            <p>---</p>
+        </div>
+    `;
+}
+
 function finalizeSale() {
     if (currentItems.length === 0) {
         alert('Add at least one item before finalizing.');
@@ -406,6 +447,7 @@ function finalizeSale() {
     const storeName = document.getElementById('storeName').value || 'My Store';
     const now = new Date();
     const receiptId = 'R-' + String(saleCounter).padStart(4, '0');
+    const currency = getCurrency();
 
     // Save to history
     const saleRecord = {
@@ -416,41 +458,34 @@ function finalizeSale() {
         tax: tax,
         total: grandTotal,
         taxRate: taxRate,
-        storeName: storeName
+        storeName: storeName,
+        currency: currency
     };
     salesHistory.push(saleRecord);
     saleCounter++;
     saveHistory();
     renderHistory();
 
-    // Generate receipt HTML
-    let itemsHtml = '';
-    currentItems.forEach(item => {
-        itemsHtml += `<div class="receipt-line"><span>${escapeHtml(item.name)} x${item.qty}</span><span>${formatMoney(item.total)}</span></div>`;
-    });
-
-    const receiptHtml = `
-        <div class="receipt-header">
-            <h2>${escapeHtml(storeName)}</h2>
-            <p>${now.toLocaleDateString()} ${now.toLocaleTimeString()}</p>
-            <p>Receipt #${receiptId}</p>
-        </div>
-        <div class="receipt-divider"></div>
-        ${itemsHtml}
-        <div class="receipt-divider"></div>
-        <div class="receipt-line"><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
-        <div class="receipt-line"><span>Tax (${taxRate}%)</span><span>${formatMoney(tax)}</span></div>
-        <div class="receipt-line receipt-total"><span>TOTAL</span><span>${formatMoney(grandTotal)}</span></div>
-        <div class="receipt-divider"></div>
-        <div class="receipt-footer">
-            <p>Thank you for your purchase!</p>
-            <p>---</p>
-        </div>
-    `;
-
-    document.getElementById('receiptPreview').innerHTML = receiptHtml;
+    // Generate receipt
+    document.getElementById('receiptPreview').innerHTML = generateReceiptHtml(saleRecord);
     document.getElementById('receiptCard').style.display = 'block';
     document.getElementById('receiptCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function reprintReceipt(index) {
+    const sale = salesHistory[index];
+    if (!sale) return;
+
+    document.getElementById('receiptPreview').innerHTML = generateReceiptHtml(sale);
+    document.getElementById('receiptCard').style.display = 'block';
+    document.getElementById('receiptCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function deleteSale(index) {
+    if (!confirm('Delete this sale record? This cannot be undone.')) return;
+    salesHistory.splice(index, 1);
+    saveHistory();
+    renderHistory();
 }
 
 function newSale() {
@@ -473,15 +508,22 @@ function renderHistory() {
         return;
     }
 
-    let html = '<table><thead><tr><th>Receipt #</th><th>Time</th><th>Items</th><th class="num">Total</th></tr></thead><tbody>';
-    [...salesHistory].reverse().forEach(sale => {
+    let html = '<table><thead><tr><th>Receipt #</th><th>Time</th><th>Items</th><th class="num">Total</th><th class="actions">Actions</th></tr></thead><tbody>';
+    // Show most recent first, but keep original index for delete/reprint
+    const reversed = [...salesHistory].map((sale, idx) => ({ sale, originalIndex: idx })).reverse();
+    reversed.forEach(({ sale, originalIndex }) => {
         const time = new Date(sale.time).toLocaleTimeString();
         const itemCount = sale.items.reduce((sum, i) => sum + i.qty, 0);
+        const currency = sale.currency || getCurrency();
         html += `<tr>
             <td>${sale.id}</td>
             <td>${time}</td>
             <td>${itemCount} item(s)</td>
-            <td class="num">${getCurrency()}${sale.total.toFixed(2)}</td>
+            <td class="num">${currency}${sale.total.toFixed(2)}</td>
+            <td class="actions">
+                <button class="btn-warning btn-sm" onclick="reprintReceipt(${originalIndex})">🖨️ Reprint</button>
+                <button class="btn-danger btn-sm" onclick="deleteSale(${originalIndex})">🗑️ Delete</button>
+            </td>
         </tr>`;
     });
     html += '</tbody></table>';
